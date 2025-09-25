@@ -3,7 +3,8 @@ from tkinter import ttk, scrolledtext, messagebox, filedialog
 import sympy as sp
 from sympy import *
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 from datetime import datetime
 import os
@@ -1403,8 +1404,9 @@ class AdvancedIntegralSolverUI:
                 widget.destroy()
             
             # Crear figura con tamaño más compacto
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 6))
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5))
             fig.patch.set_facecolor('#0d1117')
+            fig.subplots_adjust(hspace=0.35, top=0.95, bottom=0.08, left=0.09, right=0.98)
             
             # Parsear función
             x = Symbol('x')
@@ -1417,46 +1419,64 @@ class AdvancedIntegralSolverUI:
             x_vals = np.linspace(-5, 5, 1000)
             
             try:
-                y_vals = func_lambdified(x_vals)
+                with np.errstate(all='ignore'):
+                    y_vals = func_lambdified(x_vals)
+                    y_vals = np.where(np.isfinite(y_vals), y_vals, np.nan)
                 
                 # Gráfico de la función original
                 ax1.plot(x_vals, y_vals, color='#58a6ff', linewidth=2, label=f'f(x) = {funcion}')
+                ax1.axhline(0, color='#374151', linewidth=1)
+                ax1.axvline(0, color='#374151', linewidth=1)
                 ax1.grid(True, alpha=0.3, color='#30363d')
                 ax1.set_facecolor('#0d1117')
                 ax1.tick_params(colors='#f0f6fc', labelsize=8)
                 ax1.set_title('Función Original', color='#f0f6fc', fontsize=10, fontweight='bold')
                 ax1.legend(facecolor='#21262d', edgecolor='#30363d', labelcolor='#f0f6fc', fontsize=8)
                 
-                # Intentar graficar la integral
-                if hasattr(self, 'pasos_actuales') and self.pasos_actuales:
-                    try:
-                        integral_result = integrate(funcion, x)
-                        integral_lambdified = lambdify(x, integral_result, 'numpy')
+                # Intentar graficar la integral (siempre que sea integrable)
+                try:
+                    integral_result = simplify(integrate(funcion, x))
+                    integral_lambdified = lambdify(x, integral_result, 'numpy')
+                    with np.errstate(all='ignore'):
                         y_integral = integral_lambdified(x_vals)
-                        
-                        ax2.plot(x_vals, y_integral, color='#22c55e', linewidth=2, 
-                                label=f'∫f(x)dx = {integral_result}')
-                        ax2.grid(True, alpha=0.3, color='#30363d')
-                        ax2.set_facecolor('#0d1117')
-                        ax2.tick_params(colors='#f0f6fc', labelsize=8)
-                        ax2.set_title('Función Integral', color='#f0f6fc', fontsize=10, fontweight='bold')
-                        ax2.legend(facecolor='#21262d', edgecolor='#30363d', labelcolor='#f0f6fc', fontsize=8)
-                    except:
-                        ax2.text(0.5, 0.5, 'Integral no graficable', transform=ax2.transAxes,
-                                ha='center', va='center', color='#7d8590', fontsize=10)
-                        ax2.set_facecolor('#0d1117')
+                        y_integral = np.where(np.isfinite(y_integral), y_integral, np.nan)
+                    
+                    ax2.plot(x_vals, y_integral, color='#22c55e', linewidth=2, 
+                            label=f'∫f(x)dx = {integral_result}')
+                    ax2.axhline(0, color='#374151', linewidth=1)
+                    ax2.axvline(0, color='#374151', linewidth=1)
+                    ax2.grid(True, alpha=0.3, color='#30363d')
+                    ax2.set_facecolor('#0d1117')
+                    ax2.tick_params(colors='#f0f6fc', labelsize=8)
+                    ax2.set_title('Función Integral', color='#f0f6fc', fontsize=10, fontweight='bold')
+                    ax2.legend(facecolor='#21262d', edgecolor='#30363d', labelcolor='#f0f6fc', fontsize=8)
+                except:
+                    ax2.text(0.5, 0.5, 'Integral no graficable', transform=ax2.transAxes,
+                            ha='center', va='center', color='#7d8590', fontsize=10)
+                    ax2.set_facecolor('#0d1117')
                 
             except Exception as e:
                 ax1.text(0.5, 0.5, f'Error al graficar:\n{str(e)}', transform=ax1.transAxes,
                         ha='center', va='center', color='#ef4444', fontsize=9)
                 ax1.set_facecolor('#0d1117')
             
-            plt.tight_layout()
+            # Compactar un poco el layout para dejar espacio a la toolbar
+            fig.tight_layout()
             
-            # Integrar con tkinter
-            canvas = FigureCanvasTkAgg(fig, self.graph_frame)
+            # Contenedor para canvas + toolbar
+            container = tk.Frame(self.graph_frame, bg='#0d1117')
+            container.pack(fill='both', expand=True)
+
+            # Canvas
+            canvas = FigureCanvasTkAgg(fig, container)
             canvas.draw()
-            canvas.get_tk_widget().pack(fill='both', expand=True)
+            canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
+
+            # Toolbar siempre visible
+            toolbar_frame = tk.Frame(container, bg='#0d1117')
+            toolbar_frame.pack(side='bottom', fill='x')
+            toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
+            toolbar.update()
             
             # Mostrar botón de cerrar gráfico
             self.btn_cerrar_grafico.pack(side='right', padx=5)
@@ -1465,39 +1485,103 @@ class AdvancedIntegralSolverUI:
             messagebox.showerror("Error", f"Error al crear el gráfico: {str(e)}")
     
     def exportar_pdf(self):
-        """Exportar solución a archivo de texto"""
+        """Exportar solución completa a PDF (pasos + gráficas)."""
         if not hasattr(self, 'pasos_actuales') or not self.pasos_actuales:
             messagebox.showwarning("Advertencia", "Primero resuelve una integral")
             return
         
         try:
             filename = filedialog.asksaveasfilename(
-                defaultextension=".txt",
-                filetypes=[("Archivo de texto", "*.txt"), ("Todos los archivos", "*.*")],
-                title="Guardar solución"
+                defaultextension=".pdf",
+                filetypes=[("Archivo PDF", "*.pdf")],
+                title="Guardar PDF"
             )
-            
-            if filename:
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write("SOLUCIONADOR AVANZADO DE INTEGRALES\n")
-                    f.write("="*50 + "\n")
-                    f.write(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                    f.write(f"Función: {self.funcion_var.get()}\n")
-                    f.write(f"Tipo: {self.tipo_integral.get()}\n\n")
-                    
-                    for i, paso in enumerate(self.pasos_actuales, 1):
-                        f.write(f"PASO {i}: {paso['titulo']}\n")
-                        f.write("-"*40 + "\n")
-                        if 'formula' in paso:
-                            f.write(f"Fórmula: {paso['formula']}\n")
-                        if 'explicacion' in paso:
-                            f.write(f"Explicación: {paso['explicacion']}\n")
-                        f.write("\n")
-                
-                messagebox.showinfo("Éxito", f"Solución guardada en: {filename}")
-                
+            if not filename:
+                return
+
+            with PdfPages(filename) as pdf:
+                # Página 1: Gráficas (recrear figura para exportación)
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6))
+                fig.patch.set_facecolor('white')
+                fig.subplots_adjust(hspace=0.35, top=0.95, bottom=0.08, left=0.1, right=0.98)
+
+                x = Symbol('x')
+                funcion = parse_expr(self.funcion_var.get().strip(), transformations='all')
+                func_lamb = lambdify(x, funcion, 'numpy')
+                x_vals = np.linspace(-5, 5, 1000)
+                with np.errstate(all='ignore'):
+                    y_vals = func_lamb(x_vals)
+                    y_vals = np.where(np.isfinite(y_vals), y_vals, np.nan)
+                ax1.plot(x_vals, y_vals, color='#2563eb', linewidth=2, label=f'f(x) = {funcion}')
+                ax1.axhline(0, color='#9ca3af', linewidth=0.8)
+                ax1.axvline(0, color='#9ca3af', linewidth=0.8)
+                ax1.grid(True, alpha=0.3)
+                ax1.set_title('Función Original')
+                ax1.legend()
+
+                try:
+                    F = simplify(integrate(funcion, x))
+                    F_lamb = lambdify(x, F, 'numpy')
+                    with np.errstate(all='ignore'):
+                        yI = F_lamb(x_vals)
+                        yI = np.where(np.isfinite(yI), yI, np.nan)
+                    ax2.plot(x_vals, yI, color='#16a34a', linewidth=2, label=f'∫f(x)dx = {F}')
+                    ax2.axhline(0, color='#9ca3af', linewidth=0.8)
+                    ax2.axvline(0, color='#9ca3af', linewidth=0.8)
+                    ax2.grid(True, alpha=0.3)
+                    ax2.set_title('Función Integral')
+                    ax2.legend()
+                except Exception:
+                    ax2.text(0.5, 0.5, 'Integral no graficable', transform=ax2.transAxes,
+                             ha='center', va='center')
+                pdf.savefig(fig)
+                plt.close(fig)
+
+                # Páginas siguientes: Pasos con fórmulas
+                def nueva_pagina():
+                    fig_steps = plt.figure(figsize=(8.27, 11.69))  # A4
+                    fig_steps.patch.set_facecolor('white')
+                    ax = fig_steps.add_axes([0.06, 0.04, 0.88, 0.92])
+                    ax.axis('off')
+                    return fig_steps, ax
+
+                fig_s, ax_s = nueva_pagina()
+                y = 0.96
+                header = f"Solución Paso a Paso — {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                ax_s.text(0.5, y, header, ha='center', va='top', fontsize=14, weight='bold')
+                y -= 0.05
+                ax_s.text(0.06, y, f"Función: {self.funcion_var.get()}  |  Tipo: {self.tipo_integral.get()}", fontsize=10)
+                y -= 0.03
+
+                for i, paso in enumerate(self.pasos_actuales, 1):
+                    if y < 0.08:
+                        pdf.savefig(fig_s)
+                        plt.close(fig_s)
+                        fig_s, ax_s = nueva_pagina()
+                        y = 0.96
+                    ax_s.text(0.06, y, f"Paso {i}: {paso.get('titulo','')}", fontsize=11, weight='bold')
+                    y -= 0.03
+                    formula_ltx = paso.get('formula_latex')
+                    formula_txt = paso.get('formula')
+                    if formula_ltx:
+                        txt = f"${formula_ltx}$"
+                        ax_s.text(0.08, y, txt, fontsize=11)
+                        y -= 0.035
+                    elif formula_txt:
+                        ax_s.text(0.08, y, str(formula_txt), fontsize=10, color='#374151')
+                        y -= 0.03
+                    explic = paso.get('explicacion')
+                    if explic:
+                        ax_s.text(0.08, y, explic, fontsize=9)
+                        y -= 0.03
+                    y -= 0.01
+
+                pdf.savefig(fig_s)
+                plt.close(fig_s)
+
+            messagebox.showinfo("Éxito", f"PDF guardado en: {filename}")
         except Exception as e:
-            messagebox.showerror("Error", f"Error al exportar: {str(e)}")
+            messagebox.showerror("Error", f"Error al exportar PDF: {str(e)}")
     
     def limpiar_todo(self):
         """Limpiar toda la interfaz"""

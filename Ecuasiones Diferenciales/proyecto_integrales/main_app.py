@@ -5,6 +5,9 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 from datetime import datetime
 from sympy import *
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 from math_solver import MathSolver
 from ui_manager import UIManager
@@ -137,39 +140,103 @@ class MainApp:
         self.graph_manager.crear_grafico(funcion_str, self.pasos_actuales)
     
     def exportar_solucion(self):
-        """Exportar solución a archivo de texto"""
+        """Exportar solución completa a PDF (gráficas + pasos)."""
         if not self.pasos_actuales:
             messagebox.showwarning("Advertencia", "Primero resuelve una integral")
             return
-        
         try:
             filename = filedialog.asksaveasfilename(
-                defaultextension=".txt",
-                filetypes=[("Archivo de texto", "*.txt"), ("Todos los archivos", "*.*")],
-                title="Guardar solución"
+                defaultextension=".pdf",
+                filetypes=[("Archivo PDF", "*.pdf")],
+                title="Guardar PDF"
             )
-            
-            if filename:
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write("SOLUCIONADOR AVANZADO DE INTEGRALES\n")
-                    f.write("="*50 + "\n")
-                    f.write(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                    f.write(f"Función: {self.ui_manager.get_funcion_str()}\n")
-                    f.write(f"Tipo: {self.ui_manager.get_tipo_integral()}\n\n")
-                    
-                    for i, paso in enumerate(self.pasos_actuales, 1):
-                        f.write(f"PASO {i}: {paso['titulo']}\n")
-                        f.write("-"*40 + "\n")
-                        if 'formula' in paso:
-                            f.write(f"Fórmula: {paso['formula']}\n")
-                        if 'explicacion' in paso:
-                            f.write(f"Explicación: {paso['explicacion']}\n")
-                        f.write("\n")
-                
-                messagebox.showinfo("Éxito", f"Solución guardada en: {filename}")
-                
+            if not filename:
+                return
+
+            funcion_str = self.ui_manager.get_funcion_str()
+            x = Symbol(self.ui_manager.get_variable_str())
+            funcion = parse_expr(funcion_str, transformations='all')
+
+            with PdfPages(filename) as pdf:
+                # Página de gráficas
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6))
+                fig.patch.set_facecolor('white')
+                fig.subplots_adjust(hspace=0.35, top=0.95, bottom=0.08, left=0.1, right=0.98)
+                x_vals = np.linspace(-5, 5, 1000)
+                func_lamb = lambdify(x, funcion, 'numpy')
+                with np.errstate(all='ignore'):
+                    y_vals = func_lamb(x_vals)
+                    y_vals = np.where(np.isfinite(y_vals), y_vals, np.nan)
+                ax1.plot(x_vals, y_vals, color='#2563eb', linewidth=2, label=f'f(x) = {funcion}')
+                ax1.axhline(0, color='#9ca3af', linewidth=0.8)
+                ax1.axvline(0, color='#9ca3af', linewidth=0.8)
+                ax1.grid(True, alpha=0.3)
+                ax1.set_title('Función Original')
+                ax1.legend()
+
+                try:
+                    F = simplify(integrate(funcion, x))
+                    F_lamb = lambdify(x, F, 'numpy')
+                    with np.errstate(all='ignore'):
+                        yI = F_lamb(x_vals)
+                        yI = np.where(np.isfinite(yI), yI, np.nan)
+                    ax2.plot(x_vals, yI, color='#16a34a', linewidth=2, label=f'∫f(x)dx = {F}')
+                    ax2.axhline(0, color='#9ca3af', linewidth=0.8)
+                    ax2.axvline(0, color='#9ca3af', linewidth=0.8)
+                    ax2.grid(True, alpha=0.3)
+                    ax2.set_title('Función Integral')
+                    ax2.legend()
+                except Exception:
+                    ax2.text(0.5, 0.5, 'Integral no graficable', transform=ax2.transAxes,
+                             ha='center', va='center')
+                pdf.savefig(fig)
+                plt.close(fig)
+
+                # Páginas de pasos
+                def nueva_pagina():
+                    fig_steps = plt.figure(figsize=(8.27, 11.69))
+                    fig_steps.patch.set_facecolor('white')
+                    ax = fig_steps.add_axes([0.06, 0.04, 0.88, 0.92])
+                    ax.axis('off')
+                    return fig_steps, ax
+
+                fig_s, ax_s = nueva_pagina()
+                y = 0.96
+                header = f"Solución Paso a Paso — {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                ax_s.text(0.5, y, header, ha='center', va='top', fontsize=14, weight='bold')
+                y -= 0.05
+                tipo = self.ui_manager.get_tipo_integral()
+                ax_s.text(0.06, y, f"Función: {funcion_str}  |  Tipo: {tipo}", fontsize=10)
+                y -= 0.03
+
+                for i, paso in enumerate(self.pasos_actuales, 1):
+                    if y < 0.08:
+                        pdf.savefig(fig_s)
+                        plt.close(fig_s)
+                        fig_s, ax_s = nueva_pagina()
+                        y = 0.96
+                    ax_s.text(0.06, y, f"Paso {i}: {paso.get('titulo','')}", fontsize=11, weight='bold')
+                    y -= 0.03
+                    formula_ltx = paso.get('formula_latex')
+                    formula_txt = paso.get('formula')
+                    if formula_ltx:
+                        ax_s.text(0.08, y, f"${formula_ltx}$", fontsize=11)
+                        y -= 0.035
+                    elif formula_txt:
+                        ax_s.text(0.08, y, str(formula_txt), fontsize=10, color='#374151')
+                        y -= 0.03
+                    explic = paso.get('explicacion')
+                    if explic:
+                        ax_s.text(0.08, y, explic, fontsize=9)
+                        y -= 0.03
+                    y -= 0.01
+
+                pdf.savefig(fig_s)
+                plt.close(fig_s)
+
+            messagebox.showinfo("Éxito", f"PDF guardado en: {filename}")
         except Exception as e:
-            messagebox.showerror("Error", f"Error al exportar: {str(e)}")
+            messagebox.showerror("Error", f"Error al exportar PDF: {str(e)}")
     
     def limpiar_todo(self):
         """Limpiar toda la interfaz"""

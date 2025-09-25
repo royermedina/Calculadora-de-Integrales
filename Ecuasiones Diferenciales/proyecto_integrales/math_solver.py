@@ -1,24 +1,27 @@
 """
-Clase especializada para resolver integrales paso a paso con detalle matemático
+Resolución de integrales paso a paso con explicaciones claras.
 """
 import sympy as sp
 from sympy import *
 import re
 
 class MathSolver:
-    """Clase especializada para resolver integrales paso a paso con detalle matemático"""
+    """Motor de resolución de integrales con trazado de pasos."""
     
     def __init__(self):
+        """Inicializa símbolos y estado base."""
         self.x = Symbol('x', real=True)
         
     def resolver_integral_general(self, funcion, variable):
-        """Resuelve integrales generales con pasos detallados"""
-        steps = []
+        """Punto de entrada: detecta el tipo de función y elige el método.
+        Devuelve (pasos, resultado)."""
+        steps = []  # Lista para almacenar todos los pasos de la solución
         
         try:
-            # Identificar el tipo de función
+            # PASO 1: Identificar qué tipo de función es
             tipo = self.identificar_tipo_detallado(funcion)
             
+            # Agregar el paso inicial explicando qué vamos a resolver
             steps.append({
                 'titulo': 'Integral a resolver',
                 'formula': f'∫ {funcion} d{variable}',
@@ -27,26 +30,38 @@ class MathSolver:
                 'tipo': 'objetivo'
             })
             
-            # Análisis detallado de la función
+            # PASO 2: Análisis detallado de la estructura de la función
             self.analizar_funcion(funcion, variable, steps)
             
-            # Resolver según el tipo específico
+            # PASO 3: Elegir método de resolución
+            
+            # CASO ESPECIAL 1: √(a² - x²) - requiere sustitución trigonométrica
             if self.es_sqrt_a2_minus_x2(funcion):
-                # Caso especial: √(a² - x²)
                 a = self.extraer_coeficiente_sqrt(funcion)
                 return self.resolver_sqrt_a2_minus_x2(a, variable)
+                
+            # CASO ESPECIAL 2: Funciones de la forma u^n
             elif self.es_forma_u_n(funcion, variable):
                 return self.resolver_forma_u_n(funcion, variable, steps)
+                
+            # CASO ESPECIAL 3: Productos de funciones (posible integración por partes)
             elif self.es_producto(funcion):
                 return self.resolver_producto(funcion, variable, steps)
+                
+            # CASO ESPECIAL 4: Cocientes (fracciones)
             elif self.es_cociente(funcion):
                 return self.resolver_cociente(funcion, variable, steps)
+                
+            # CASO ESPECIAL 5: Exponenciales compuestas
             elif self.es_exponencial_compuesta(funcion, variable):
                 return self.resolver_exponencial_compuesta(funcion, variable, steps)
+                
+            # CASO ESPECIAL 6: Trigonométricas compuestas
             elif self.es_trigonometrica_compuesta(funcion, variable):
                 return self.resolver_trigonometrica_compuesta(funcion, variable, steps)
+                
+            # CASO GENERAL: Si no encaja en ningún caso especial
             else:
-                # Método general mejorado
                 return self.resolver_con_pasos_detallados(funcion, variable, steps)
                 
         except Exception as e:
@@ -59,9 +74,10 @@ class MathSolver:
             return steps, None
     
     def resolver_sqrt_a2_minus_x2(self, a, var_sym):
-        """Resuelve ∫√(a² - x²) dx con sustitución trigonométrica detallada"""
+        """Resuelve ∫√(a² − x²) dx vía sustitución trigonométrica (x = a·sinθ)."""
         steps = []
         
+        # Paso 1: enunciado
         steps.append({
             'titulo': 'Integral a resolver',
             'formula': f'I(x) = ∫ √({a}² - x²) dx',
@@ -70,6 +86,7 @@ class MathSolver:
             'tipo': 'objetivo'
         })
         
+        # Paso 2: identificar
         steps.append({
             'titulo': 'Identificación del tipo',
             'formula': f'∫ √(a² - x²) dx donde a = {a}',
@@ -78,22 +95,25 @@ class MathSolver:
             'tipo': 'identificacion'
         })
         
+        # Paso 3: sustitución
         steps.append({
-            'titulo': ' Sustitución trigonométrica',
+            'titulo': '🔄 Sustitución trigonométrica',
             'formula': f'x = {a}·sen(θ), dx = {a}·cos(θ) dθ',
             'formula_latex': f'x = {a}\\sin(\\theta), \\quad dx = {a}\\cos(\\theta) \\, d\\theta',
             'explicacion': f'Sustituimos x = {a}·sen(θ) para simplificar la expresión bajo la raíz.',
             'tipo': 'sustitucion'
         })
         
+        # Paso 4: simplificar
         steps.append({
-            'titulo': ' Simplificación trigonométrica',
+            'titulo': '⚡ Simplificación trigonométrica',
             'formula': f'√({a}² - x²) = √({a}² - {a}²·sen²(θ)) = {a}·cos(θ)',
             'formula_latex': f'\\sqrt{{{a}^2 - x^2}} = \\sqrt{{{a}^2 - {a}^2\\sin^2(\\theta)}} = {a}\\cos(\\theta)',
             'explicacion': 'Usamos la identidad trigonométrica: sen²(θ) + cos²(θ) = 1',
             'tipo': 'simplificacion'
         })
         
+        # Paso 5: integrar
         steps.append({
             'titulo': 'Integración',
             'formula': f'∫ {a}·cos(θ) · {a}·cos(θ) dθ = {a}² ∫ cos²(θ) dθ',
@@ -102,6 +122,7 @@ class MathSolver:
             'tipo': 'integracion'
         })
         
+        # Paso 6: identidad ángulo doble
         steps.append({
             'titulo': 'Identidad del ángulo doble',
             'formula': f'cos²(θ) = (1 + cos(2θ))/2',
@@ -110,6 +131,7 @@ class MathSolver:
             'tipo': 'identidad'
         })
         
+        # Paso 7: integración final
         steps.append({
             'titulo': 'Integración final',
             'formula': f'{a}² ∫ (1 + cos(2θ))/2 dθ = {a}²/2 · (θ + sen(2θ)/2)',
@@ -118,6 +140,7 @@ class MathSolver:
             'tipo': 'integracion_final'
         })
         
+        # Paso 8: regresar a x
         steps.append({
             'titulo': 'Regreso a variable original',
             'formula': f'θ = arcsen(x/{a}), sen(2θ) = 2·sen(θ)·cos(θ) = 2·(x/{a})·√({a}²-x²)/{a}',
@@ -126,6 +149,7 @@ class MathSolver:
             'tipo': 'regreso'
         })
         
+        # Paso 9: resultado
         resultado_final = f'{a**2}/2 · arcsen(x/{a}) + x·√({a}² - x²)/2 + C'
         resultado_latex = f'\\frac{{{a**2}}}{{2}}\\arcsin\\left(\\frac{{x}}{{{a}}}\\right) + \\frac{{x\\sqrt{{{a}^2 - x^2}}}}{{2}} + C'
         
@@ -140,7 +164,7 @@ class MathSolver:
         return steps, resultado_final
     
     def analizar_funcion(self, funcion, variable, steps):
-        """Análisis detallado de la función antes de integrar"""
+        """Análisis previo: estructura de f, grado y factorización (si aplica)."""
         steps.append({
             'titulo': 'Análisis de la función',
             'formula': f'f({variable}) = {funcion}',
@@ -149,10 +173,10 @@ class MathSolver:
             'tipo': 'analisis'
         })
         
-        # Análisis de complejidad
+        # ¿Polinomio?
         if funcion.is_polynomial():
-            grado = degree(funcion)
-            coeficientes = Poly(funcion, variable).all_coeffs()
+            grado = degree(funcion)  # Obtener el grado del polinomio
+            coeficientes = Poly(funcion, variable).all_coeffs()  # Obtener coeficientes
             steps.append({
                 'titulo': 'Polinomio identificado',
                 'formula': f'Grado: {grado}, Coeficientes: {coeficientes}',
@@ -160,9 +184,9 @@ class MathSolver:
                 'tipo': 'identificacion'
             })
         
-        # Análisis de factores
+        # ¿Se puede factorizar?
         factores = factor(funcion)
-        if factores != funcion:
+        if factores != funcion:  # Si la factorización es diferente de la función original
             steps.append({
                 'titulo': 'Factorización',
                 'formula': f'{funcion} = {factores}',
@@ -171,33 +195,11 @@ class MathSolver:
                 'tipo': 'factorizacion'
             })
     
-    def es_sqrt_a2_minus_x2(self, funcion):
-        """Detecta si es una función de la forma √(a² - x²)"""
-        func_str = str(funcion)
-        if 'sqrt' in func_str and '-' in func_str:
-            # Buscar patrones como sqrt(25-x**2), sqrt(9-x^2), etc.
-            pattern = r'sqrt\((\d+)\s*-\s*x\*\*?2\)'
-            return bool(re.search(pattern, func_str))
-        return False
-    
-    def extraer_coeficiente_sqrt(self, funcion):
-        """Extrae el coeficiente 'a' de √(a² - x²)"""
-        func_str = str(funcion)
-        if 'sqrt(25' in func_str:
-            return 5
-        elif 'sqrt(4' in func_str:
-            return 2
-        elif 'sqrt(9' in func_str:
-            return 3
-        elif 'sqrt(16' in func_str:
-            return 4
-        else:
-            return 1
-    
     def identificar_tipo_detallado(self, funcion):
-        """Identificación más detallada del tipo de función"""
+        """Clasifica la función (polinomio, irracional, trig., exp., log, compuesta)."""
         func_str = str(funcion)
         
+        # Verificar diferentes tipos de funciones
         if funcion.is_polynomial():
             grado = degree(funcion)
             return f'Polinomio de grado {grado}'
@@ -213,25 +215,25 @@ class MathSolver:
             return 'Función compuesta'
     
     def resolver_con_pasos_detallados(self, funcion, variable, steps):
-        """Resuelve integrales con pasos detallados usando diferentes métodos"""
+        """Orquesta métodos específicos y cae al general si es necesario."""
         try:
-            # Intentar con regla de potencia primero
+            # MÉTODO 1: Regla de potencia para polinomios
             if funcion.is_polynomial():
                 return self.resolver_por_potencia(funcion, variable, steps)
             
-            # Intentar con métodos trigonométricos
+            # MÉTODO 2: Métodos trigonométricos
             elif funcion.has(sin, cos, tan):
                 return self.resolver_trigonometrica(funcion, variable, steps)
             
-            # Intentar con métodos exponenciales
+            # MÉTODO 3: Métodos exponenciales
             elif funcion.has(exp):
                 return self.resolver_exponencial(funcion, variable, steps)
             
-            # Intentar con métodos logarítmicos
+            # MÉTODO 4: Métodos logarítmicos
             elif funcion.has(log):
                 return self.resolver_logaritmica(funcion, variable, steps)
             
-            # Método general con SymPy
+            # MÉTODO 5: Método general con SymPy (último recurso)
             else:
                 return self.resolver_general_sympy(funcion, variable, steps)
                 
@@ -245,10 +247,11 @@ class MathSolver:
             return steps, None
     
     def resolver_por_potencia(self, funcion, variable, steps):
-        """Resuelve integrales usando la regla de la potencia con pasos detallados"""
+        """Regla de la potencia, término a término en polinomios."""
         
         # Si es un polinomio, procesarlo término por término
         if funcion.is_polynomial():
+            # Expandir y obtener todos los términos del polinomio
             terminos = Add.make_args(expand(funcion))
             steps.append({
                 'titulo': 'Descomposición polinomial',
@@ -258,12 +261,16 @@ class MathSolver:
                 'tipo': 'descomposicion'
             })
             
-            resultados = []
+            resultados = []  # Lista para guardar el resultado de cada término
+            
+            # Procesar cada término individualmente
             for i, termino in enumerate(terminos, 1):
-                # Analizar cada término
+                # Extraer coeficiente y potencia
+                
                 if termino.is_Mul:
                     coef = 1
                     potencia = None
+                    # Analizar cada factor del producto
                     for factor in termino.args:
                         if factor.is_number:
                             coef *= factor
@@ -274,6 +281,7 @@ class MathSolver:
                     
                     if potencia is None:
                         potencia = 0
+                        
                 elif termino == variable:
                     coef = 1
                     potencia = 1
@@ -284,6 +292,7 @@ class MathSolver:
                     coef = termino
                     potencia = 0
                 
+                # Mostrar el análisis de este término
                 steps.append({
                     'titulo': f'Término {i}: {termino}',
                     'formula': f'Coeficiente: {coef}, Potencia de {variable}: {potencia}',
@@ -291,16 +300,18 @@ class MathSolver:
                     'tipo': 'analisis_termino'
                 })
 
+                # CASO ESPECIAL: n = -1 (da logaritmo)
                 if potencia == -1:
                     resultado_termino = coef * log(abs(variable))
                     steps.append({
-                        'titulo': f' Caso especial n=-1',
+                        'titulo': f'🔥 Caso especial n=-1',
                         'formula': f'∫ {coef}·{variable}^(-1) d{variable} = {coef}·ln|{variable}| + C',
                         'formula_latex': f'\\int {latex(coef)}\\cdot {variable}^{-1} \\, d{variable} = {latex(coef)}\\ln|{variable}| + C',
                         'explicacion': 'Para exponente -1, la integral es el logaritmo natural.',
                         'tipo': 'caso_especial'
                     })
                 else:
+                    # CASO NORMAL: Aplicar regla de la potencia
                     nueva_potencia = potencia + 1
                     resultado_termino = coef * variable**nueva_potencia / nueva_potencia
                     steps.append({
@@ -313,6 +324,7 @@ class MathSolver:
                 
                 resultados.append(resultado_termino)
             
+            # Sumar resultados
             resultado_final = Add(*resultados)
             
             steps.append({
@@ -334,15 +346,14 @@ class MathSolver:
             })
         
         return steps, resultado_final
-    
     def resolver_trigonometrica(self, funcion, variable, steps):
-        """Resuelve integrales trigonométricas con pasos detallados"""
+        """Integrales trigonométricas: casos básicos y compuestos."""
         
-        # Identificar la función trigonométrica específica
+        # CASO 1: Función seno
         if funcion.has(sin):
             if funcion == sin(variable):
                 steps.append({
-                    'titulo': ' Integral básica de seno',
+                    'titulo': '🌊 Integral básica de seno',
                     'formula': f'∫ sen({variable}) d{variable} = -cos({variable}) + C',
                     'formula_latex': f'\\int \\sin({variable}) \\, d{variable} = -\\cos({variable}) + C',
                     'explicacion': 'La derivada de -cos(x) es sen(x), por tanto ∫sen(x)dx = -cos(x) + C',
@@ -351,16 +362,17 @@ class MathSolver:
             else:
                 # Caso más complejo con seno
                 steps.append({
-                    'titulo': ' Función con seno',
+                    'titulo': '🌊 Función con seno',
                     'formula': f'Analizando {funcion}',
                     'explicacion': 'Función trigonométrica que contiene seno. Verificamos si necesitamos sustitución.',
                     'tipo': 'analisis'
                 })
                 
+        # CASO 2: Función coseno
         elif funcion.has(cos):
             if funcion == cos(variable):
                 steps.append({
-                    'titulo': ' Integral básica de coseno',
+                    'titulo': '〰️ Integral básica de coseno',
                     'formula': f'∫ cos({variable}) d{variable} = sen({variable}) + C',
                     'formula_latex': f'\\int \\cos({variable}) \\, d{variable} = \\sin({variable}) + C',
                     'explicacion': 'La derivada de sen(x) es cos(x), por tanto ∫cos(x)dx = sen(x) + C',
@@ -368,16 +380,17 @@ class MathSolver:
                 })
             else:
                 steps.append({
-                    'titulo': ' Función con coseno',
+                    'titulo': '〰️ Función con coseno',
                     'formula': f'Analizando {funcion}',
                     'explicacion': 'Función trigonométrica que contiene coseno.',
                     'tipo': 'analisis'
                 })
                 
+        # CASO 3: Función tangente (más compleja)
         elif funcion.has(tan):
             if funcion == tan(variable):
                 steps.append({
-                    'titulo': ' Integral de tangente',
+                    'titulo': '📐 Integral de tangente',
                     'formula': f'∫ tan({variable}) d{variable} = ∫ sen({variable})/cos({variable}) d{variable}',
                     'formula_latex': f'\\int \\tan({variable}) \\, d{variable} = \\int \\frac{{\\sin({variable})}}{{\\cos({variable})}} \\, d{variable}',
                     'explicacion': 'Reescribimos tan(x) = sen(x)/cos(x)',
@@ -392,6 +405,7 @@ class MathSolver:
                     'tipo': 'sustitucion'
                 })
         
+        # Resultado simbólico
         resultado = integrate(funcion, variable)
         
         steps.append({
@@ -405,8 +419,9 @@ class MathSolver:
         return steps, resultado
     
     def resolver_exponencial(self, funcion, variable, steps):
-        """Resuelve integrales exponenciales con pasos detallados"""
+        """Integrales exponenciales: e^x, compuestas y bases distintas."""
         
+        # CASO 1: Exponencial natural básica e^x
         if funcion == exp(variable):
             steps.append({
                 'titulo': '📈 Exponencial básica',
@@ -415,15 +430,17 @@ class MathSolver:
                 'explicacion': 'La función exponencial e^x es su propia derivada, por tanto ∫e^x dx = e^x + C',
                 'tipo': 'formula_basica'
             })
+            
+        # CASO 2: Exponencial compuesta
         elif funcion.has(exp):
-            # Buscar la función exponencial dentro de la expresión
+            # Buscar argumentos de exponenciales
             exp_args = []
             for expr in preorder_traversal(funcion):
                 if expr.func == exp:
                     exp_args.append(expr.args[0])
             
             if exp_args:
-                arg = exp_args[0]
+                arg = exp_args[0]  # Tomar el primer argumento encontrado
                 steps.append({
                     'titulo': '📈 Exponencial compuesta',
                     'formula': f'Contiene e^({arg})',
@@ -432,8 +449,9 @@ class MathSolver:
                     'tipo': 'identificacion'
                 })
                 
+                # Verificar regla de la cadena si el argumento no es la variable
                 if arg != variable:
-                    derivada_arg = diff(arg, variable)
+                    derivada_arg = diff(arg, variable)  # Derivar el argumento
                     steps.append({
                         'titulo': 'Verificando regla de la cadena',
                         'formula': f'd/d{variable}[{arg}] = {derivada_arg}',
@@ -442,7 +460,7 @@ class MathSolver:
                         'tipo': 'regla_cadena'
                     })
         else:
-            # Caso de base diferente a e
+            # Exponencial de base distinta a e
             steps.append({
                 'titulo': 'Exponencial de base a',
                 'formula': f'∫ a^x dx = a^x / ln(a) + C',
@@ -464,8 +482,9 @@ class MathSolver:
         return steps, resultado
     
     def resolver_logaritmica(self, funcion, variable, steps):
-        """Resuelve integrales logarítmicas con pasos detallados"""
+        """Integrales logarítmicas; ln(x) por partes y casos generales."""
         
+        # CASO ESPECIAL: ∫ ln(x) dx
         if funcion == log(variable):
             steps.append({
                 'titulo': 'Integral de ln(x)',
@@ -484,7 +503,7 @@ class MathSolver:
             })
             
             steps.append({
-                'titulo': ' Calculando du y v',
+                'titulo': '🧮 Calculando du y v',
                 'formula': f'du = 1/{variable} d{variable}, v = {variable}',
                 'formula_latex': f'du = \\frac{{1}}{{{variable}}} d{variable}, \\quad v = {variable}',
                 'explicacion': 'Derivamos u e integramos dv.',
@@ -492,7 +511,7 @@ class MathSolver:
             })
             
             steps.append({
-                'titulo': ' Aplicando fórmula',
+                'titulo': '🔧 Aplicando fórmula',
                 'formula': f'∫u dv = uv - ∫v du = {variable}·ln({variable}) - ∫{variable}·(1/{variable}) d{variable}',
                 'formula_latex': f'\\int u \\, dv = uv - \\int v \\, du = {variable}\\ln({variable}) - \\int 1 \\, d{variable}',
                 'explicacion': 'La segunda integral se simplifica a ∫1 dx = x',
@@ -509,6 +528,7 @@ class MathSolver:
                 'tipo': 'simplificacion'
             })
         else:
+            # Caso general
             resultado = integrate(funcion, variable)
             steps.append({
                 'titulo': 'Función logarítmica compleja',
@@ -521,12 +541,12 @@ class MathSolver:
         return steps, resultado
     
     def resolver_general_sympy(self, funcion, variable, steps):
-        """Resuelve usando SymPy con explicación general"""
+        """Fallback: delega en SymPy y registra el resultado o error."""
         try:
             resultado = integrate(funcion, variable)
             
             steps.append({
-                'titulo': ' Resolución con métodos avanzados',
+                'titulo': '🎯 Resolución con métodos avanzados',
                 'formula': f'∫ {funcion} d{variable} = {resultado} + C',
                 'formula_latex': f'\\int {latex(funcion)} \\, d{variable} = {latex(resultado)} + C',
                 'explicacion': 'Integral resuelta usando técnicas avanzadas de cálculo simbólico.',
@@ -543,33 +563,63 @@ class MathSolver:
                 'tipo': 'error'
             })
             return steps, None
+    # === Detección de tipos de funciones ===
     
-    # Métodos auxiliares para detección de tipos
+    def es_sqrt_a2_minus_x2(self, funcion):
+        """Detecta patrones tipo √(a² − x²)."""
+        func_str = str(funcion)
+        
+        # Buscar raíz y resta
+        if 'sqrt' in func_str and '-' in func_str:
+            # Detectar sqrt(25-x**2), sqrt(9-x^2), etc.
+            pattern = r'sqrt\((\d+)\s*-\s*x\*\*?2\)'
+            return bool(re.search(pattern, func_str))
+        return False
+    
+    def extraer_coeficiente_sqrt(self, funcion):
+        """Devuelve a en √(a² − x²) para algunos cuadrados perfectos comunes."""
+        func_str = str(funcion)
+        
+        # Mapear números cuadrados perfectos a sus raíces
+        if 'sqrt(25' in func_str:
+            return 5  # √25 = 5
+        elif 'sqrt(4' in func_str:
+            return 2  # √4 = 2
+        elif 'sqrt(9' in func_str:
+            return 3  # √9 = 3
+        elif 'sqrt(16' in func_str:
+            return 4  # √16 = 4
+        else:
+            return 1  # Valor por defecto
+    
     def es_forma_u_n(self, funcion, variable):
-        """Detecta si es de la forma u^n"""
+        """Detecta potencias u^n con una sola variable libre."""
         return funcion.is_Pow and len(funcion.free_symbols) == 1
     
     def es_producto(self, funcion):
-        """Detecta si es un producto de funciones"""
+        """Detecta productos de funciones."""
         return funcion.is_Mul
     
     def es_cociente(self, funcion):
-        """Detecta si es un cociente"""
+        """Detecta cocientes (potencias negativas en factores)."""
+        # Verificar si hay multiplicación con potencias negativas
         return funcion.is_Mul and any(arg.is_Pow and arg.exp < 0 for arg in funcion.args)
     
     def es_exponencial_compuesta(self, funcion, variable):
-        """Detecta exponenciales compuestas"""
+        """Detecta e^(u(x)) distinto de e^x."""
         return funcion.has(exp) and not funcion.equals(exp(variable))
     
     def es_trigonometrica_compuesta(self, funcion, variable):
-        """Detecta funciones trigonométricas compuestas"""
+        """Detecta trigonométricas con argumento distinto de la variable."""
         return (funcion.has(sin, cos, tan) and 
                 not any(trig.args[0] == variable for trig in [sin, cos, tan] if funcion.has(trig)))
     
+    # === Métodos específicos para casos complejos ===
+    
     def resolver_forma_u_n(self, funcion, variable, steps):
-        """Resuelve integrales de la forma u^n"""
-        base = funcion.base
-        exponente = funcion.exp
+        """Caso u^n; aplica potencia y verifica regla de la cadena."""
+        base = funcion.base      # La base 'u'
+        exponente = funcion.exp  # El exponente 'n'
         
         steps.append({
             'titulo': 'Forma u^n identificada',
@@ -579,16 +629,18 @@ class MathSolver:
             'tipo': 'identificacion'
         })
         
+        # CASO ESPECIAL: Exponente -1 (da logaritmo)
         if exponente == -1:
             resultado = log(abs(base))
             steps.append({
-                'titulo': ' Regla especial para n=-1',
+                'titulo': '🔥 Regla especial para n=-1',
                 'formula': f'∫ u^(-1) du = ln|u| + C',
                 'formula_latex': f'\\int u^{{-1}} \\, du = \\ln|u| + C',
                 'explicacion': 'Para exponente -1, la integral es el logaritmo natural.',
                 'tipo': 'regla'
             })
         else:
+            # CASO NORMAL: Regla de la potencia
             nuevo_exp = exponente + 1
             resultado = base**nuevo_exp / nuevo_exp
             steps.append({
@@ -599,7 +651,7 @@ class MathSolver:
                 'tipo': 'regla'
             })
         
-        # Verificar si necesita regla de la cadena
+        # Regla de la cadena
         if base != variable:
             derivada_base = diff(base, variable)
             steps.append({
@@ -622,7 +674,7 @@ class MathSolver:
         return steps, resultado_final
     
     def resolver_producto(self, funcion, variable, steps):
-        """Resuelve productos usando integración por partes o propiedades"""
+        """Productos: extrae constantes, evalúa por partes y resuelve."""
         factores = list(funcion.args)
         
         steps.append({
@@ -643,10 +695,12 @@ class MathSolver:
             else:
                 funciones_var.append(factor)
         
+        # Extraer constantes fuera de la integral
         if constantes:
             const_producto = 1
             for c in constantes:
                 const_producto *= c
+                
             steps.append({
                 'titulo': 'Extrayendo constantes',
                 'formula': f'∫ {const_producto} × {" × ".join(map(str, funciones_var))} d{variable}',
@@ -656,14 +710,14 @@ class MathSolver:
             })
             
             steps.append({
-                'titulo': ' Propiedad lineal',
+                'titulo': '🔧 Propiedad lineal',
                 'formula': f'{const_producto} ∫ {" × ".join(map(str, funciones_var))} d{variable}',
                 'formula_latex': f'{latex(const_producto)} \\int {latex(Mul(*funciones_var))} \\, d{variable}',
                 'explicacion': 'Las constantes salen fuera de la integral.',
                 'tipo': 'propiedad'
             })
         
-        # Determinar si usar integración por partes
+        # PASO 2: Si quedan exactamente 2 funciones, considerar integración por partes
         if len(funciones_var) == 2:
             u_cand, dv_cand = funciones_var
             steps.append({
@@ -674,11 +728,12 @@ class MathSolver:
                 'tipo': 'metodo'
             })
             
+            # Calcular du y v
             du = diff(u_cand, variable)
             try:
                 v = integrate(dv_cand, variable)
                 steps.append({
-                    'titulo': ' Calculando du y v',
+                    'titulo': '🧮 Calculando du y v',
                     'formula': f'du = {du} dx, v = {v}',
                     'formula_latex': f'du = {latex(du)} \\, dx, \\quad v = {latex(v)}',
                     'explicacion': 'Derivamos u e integramos dv.',
@@ -707,6 +762,7 @@ class MathSolver:
             except:
                 pass
         
+        # Resolver
         resultado_final = integrate(funcion, variable)
         steps.append({
             'titulo': '✅ Resultado final',
@@ -719,7 +775,19 @@ class MathSolver:
         return steps, resultado_final
     
     def resolver_cociente(self, funcion, variable, steps):
-        """Resuelve integrales de cocientes"""
+        """
+        Resuelve integrales de cocientes (fracciones)
+        
+        Los cocientes pueden necesitar:
+        - Fracciones parciales
+        - Sustitución trigonométrica  
+        - Completar el cuadrado
+        
+        Args:
+            funcion: Función racional (cociente)
+            variable: Variable de integración
+            steps: Lista de pasos
+        """
         steps.append({
             'titulo': 'Analizando cociente',
             'formula': f'∫ {funcion} d{variable}',
@@ -747,7 +815,17 @@ class MathSolver:
             return steps, None
     
     def resolver_exponencial_compuesta(self, funcion, variable, steps):
-        """Resuelve integrales exponenciales compuestas"""
+        """
+        Resuelve integrales exponenciales compuestas
+        
+        Ejemplos: ∫ e^(x²) dx, ∫ e^(2x+1) dx
+        Pueden necesitar sustitución u = argumento_de_e
+        
+        Args:
+            funcion: Función exponencial compuesta
+            variable: Variable de integración
+            steps: Lista de pasos
+        """
         steps.append({
             'titulo': 'Analizando exponencial compuesta',
             'formula': f'∫ {funcion} d{variable}',
@@ -775,7 +853,17 @@ class MathSolver:
             return steps, None
     
     def resolver_trigonometrica_compuesta(self, funcion, variable, steps):
-        """Resuelve integrales trigonométricas compuestas"""
+        """
+        Resuelve integrales trigonométricas compuestas
+        
+        Ejemplos: ∫ sin(2x) dx, ∫ cos(x²) dx, ∫ tan(3x+1) dx
+        Pueden necesitar sustitución u = argumento_trigonométrico
+        
+        Args:
+            funcion: Función trigonométrica compuesta
+            variable: Variable de integración  
+            steps: Lista de pasos
+        """
         steps.append({
             'titulo': 'Analizando trigonométrica compuesta',
             'formula': f'∫ {funcion} d{variable}',

@@ -1,4 +1,4 @@
-# 🧮 Solucionador Avanzado de Integrales - Versión Modular
+# Solucionador Avanzado de Integrales - Versión Modular
 
 ## 📁 Estructura del Proyecto
 
@@ -133,3 +133,4 @@ python main_app.py
 - 🤖 Integración con IA para sugerencias
 - 📚 Base de datos de problemas resueltos
 - 👥 Modo colaborativo multiusuario
+
